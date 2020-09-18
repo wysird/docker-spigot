@@ -1,0 +1,47 @@
+FROM openjdk:8-jre
+
+ENV JVM_ARGS ""
+ENV MAX_MEM ""
+ENV MIN_MEM ""
+ENV SPIGOT_ARGS ""
+
+EXPOSE 25565
+
+RUN mkdir -p /tmp/BuildTools
+
+WORKDIR /tmp/BuildTools
+
+RUN groupadd minecraft && \
+useradd spigot -g minecraft
+
+RUN mkdir -p /minecraft/spigot && \
+chown -R spigot:minecraft /minecraft
+
+RUN cp /etc/apt/sources.list /etc/apt/sources.list.orig && \
+echo "deb  http://deb.debian.org/debian  stretch main" >> /etc/apt/sources.list && \
+echo "deb-src  http://deb.debian.org/debian  stretch main" >> /etc/apt/sources.list && \
+apt-get update -y
+
+RUN apt-get install -y wget git
+
+RUN wget https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
+
+RUN java -jar BuildTools.jar --rev <VERSION> && \
+mv spigot-<VERSION>.jar /.
+
+WORKDIR /tmp
+
+RUN rm -fr /tmp/BuildTools && \
+apt-get purge -y wget && \
+mv /etc/apt/sources.list.orig /etc/apt/sources.list && \
+apt-get update -y
+
+ADD --chown=spigot:minecraft starter.sh /starter.sh
+
+RUN chmod +x /starter.sh
+
+WORKDIR /minecraft
+
+USER spigot
+
+ENTRYPOINT [ "/starter.sh", "<VERSION>" ]
